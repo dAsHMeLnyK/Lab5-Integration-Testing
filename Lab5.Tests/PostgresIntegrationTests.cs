@@ -39,8 +39,11 @@ public class PostgresIntegrationTests : IAsyncLifetime
 
         await _apiImage.CreateAsync();
         
-        var internalConnectionString = "Host=db_host;Port=5432;Database=postgres;Username=postgres;Password=postgres";
-
+        var connectionString = _dbContainer.GetConnectionString();
+        
+        var internalConnectionString = connectionString
+            .Replace("localhost", "db_host")
+            .Replace("127.0.0.1", "db_host");
 
         _apiContainer = new DotNet.Testcontainers.Builders.ContainerBuilder()
             .WithImage(_apiImage.FullName)
@@ -56,6 +59,7 @@ public class PostgresIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task CrudOperations_ThroughApi_WorkCorrectly()
     {
         // Arrange
@@ -101,41 +105,43 @@ public class PostgresIntegrationTests : IAsyncLifetime
         getRes.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-[Fact]
-public async Task RawSql_Search_ReturnsCorrectData()
-{
-    // Arrange
-    var port = _apiContainer.GetMappedPublicPort(8080);
-    var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}/") };
-    
-    await client.PostAsJsonAsync("api/students", new { FullName = "UniqueSearchName", Email = "sql@test.com" });
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task RawSql_Search_ReturnsCorrectData()
+    {
+        // Arrange
+        var port = _apiContainer.GetMappedPublicPort(8080);
+        var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}/") };
+        
+        await client.PostAsJsonAsync("api/students", new { FullName = "UniqueSearchName", Email = "sql@test.com" });
 
-    // Act
-    var response = await client.GetAsync("api/students/search?name=UniqueSearchName");
-    var students = await response.Content.ReadFromJsonAsync<List<dynamic>>();
+        // Act
+        var response = await client.GetAsync("api/students/search?name=UniqueSearchName");
+        var students = await response.Content.ReadFromJsonAsync<List<dynamic>>();
 
-    // Assert
-    students.ShouldNotBeEmpty();
-    students.Any(s => s.GetProperty("fullName").GetString() == "UniqueSearchName").ShouldBeTrue();
-}
+        // Assert
+        students.ShouldNotBeEmpty();
+        students.Any(s => s.GetProperty("fullName").GetString() == "UniqueSearchName").ShouldBeTrue();
+    }
 
-[Fact]
-public async Task UniqueConstraint_PreventsDuplicateEmails()
-{
-    // Arrange
-    var port = _apiContainer.GetMappedPublicPort(8080);
-    var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}/") };
-    var email = "duplicate@test.com";
-    var student = new { FullName = "User 1", Email = email };
-    
-    await client.PostAsJsonAsync("api/students", student);
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task UniqueConstraint_PreventsDuplicateEmails()
+    {
+        // Arrange
+        var port = _apiContainer.GetMappedPublicPort(8080);
+        var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}/") };
+        var email = "duplicate@test.com";
+        var student = new { FullName = "User 1", Email = email };
+        
+        await client.PostAsJsonAsync("api/students", student);
 
-    // Act
-    var response = await client.PostAsJsonAsync("api/students", new { FullName = "User 2", Email = email });
+        // Act
+        var response = await client.PostAsJsonAsync("api/students", new { FullName = "User 2", Email = email });
 
-    // Assert
-    response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-}
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 
     public async Task DisposeAsync()
     {

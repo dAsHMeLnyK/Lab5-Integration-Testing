@@ -1,7 +1,9 @@
 name: API CI (Build & Tests)
 on:
   push:
-    branches: [ "main", "lab5-*" ]
+    branches: [ "main", "feature/*", "fix/*" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build-test:

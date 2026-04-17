@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: university_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d university_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Lab5.Api/Dockerfile
+    container_name: university_api
+    depends_on:
+      db:
+        condition: service_healthy 
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=university_db;Username=user;Password=password
+      - ASPNETCORE_URLS=http://+:8080
+    ports:
+      - "5000:8080"

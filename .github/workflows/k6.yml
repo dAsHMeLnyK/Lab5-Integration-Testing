@@ -2,7 +2,7 @@ name: k6 Performance Tests
 on:
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Дозволяє запускати тест вручну кнопкою на GitHub
+  workflow_dispatch:
     inputs:
       test-type:
         description: 'Оберіть тип тесту'

@@ -1,0 +1,36 @@
+name: k6 Performance Tests
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      test-type:
+        description: 'Оберіть тип тесту'
+        required: true
+        default: 'smoke'
+        type: choice
+        options: [smoke, load]
+
+jobs:
+  k6-job:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: [5432:5432]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+      - name: Run API
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
+        run: dotnet run --project Lab5.Api &
+      - name: Wait for API
+        run: sleep 20
+      - name: Run k6 test
+        run: |
+          TYPE="${{ github.event.inputs.test-type || 'smoke' }}"
+          k6 run -e BASE_URL=http://localhost:8080 tests/Performance/scripts/$TYPE-test.js
